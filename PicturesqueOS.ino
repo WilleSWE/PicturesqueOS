@@ -7,8 +7,8 @@
 // WiFi
 // ===============================
 
-const char* ssid = "wifi";
-const char* password = "password";
+const char* ssid = " anndd wifi name here";
+const char* password = " your wifi password here, obviously :) ";
 
 const char* ntpServer = "pool.ntp.org";
 
@@ -240,7 +240,7 @@ void Display_PartialRefresh()
   uint8_t* buffer = canvas.getBuffer();
 
 
-
+  // Border waveform för partial
   SendCommand(0x3C);
   SendData(0x80);
 
@@ -251,13 +251,13 @@ void Display_PartialRefresh()
   SendData(0x00);
 
 
- 
+  // Border waveform igen (Waveshare gör detta)
   SendCommand(0x3C);
   SendData(0x80);
 
 
 
-  // whole screen (400x300)
+  // Hela skärmen (400x300)
   SendCommand(0x44);
   SendData(0x00);
   SendData(0x31);
@@ -282,7 +282,7 @@ void Display_PartialRefresh()
 
 
 
-
+  // Skriv bilddata
   SendCommand(0x24);
 
 
@@ -296,6 +296,7 @@ for(int i = 0; i < bufferSize; i++)
 
 
 
+  // Starta partial refresh
   SendCommand(0x22);
   SendData(0xFF);
 
@@ -338,14 +339,68 @@ void Display_Update()
 }
 
 // ===============================
+// Buttons / Pages
+// ===============================
+
+#define BUTTON_PAGE     17
+#define BUTTON_REFRESH  15
+
+int currentPage = 0;
+// 0 = Clock
+// 1 = Info
+
+bool lastPageButtonState = HIGH;
+bool lastRefreshButtonState = HIGH;
+
+unsigned long lastPageButtonTime = 0;
+unsigned long lastRefreshButtonTime = 0;
+
+const unsigned long BUTTON_DEBOUNCE = 200;
+
+// ===============================
+// Days Until Date
+// ===============================
+
+int daysUntil(int month, int day)
+{
+  time_t now = time(nullptr);
+
+  struct tm current;
+  localtime_r(&now, &current);
+
+  // Today's date at midnight
+  current.tm_hour = 0;
+  current.tm_min = 0;
+  current.tm_sec = 0;
+
+  time_t today = mktime(&current);
+
+  // Target date
+  struct tm target = current;
+
+  target.tm_mon = month - 1;
+  target.tm_mday = day;
+
+  time_t targetTime = mktime(&target);
+
+  // If this year's date has already passed,
+  // use next year.
+  if(targetTime < today)
+  {
+    target.tm_year++;
+    targetTime = mktime(&target);
+  }
+
+  return (targetTime - today) / 86400;
+}
+
+// ===============================
 // Draw Clock
 // ===============================
 
 void drawClock()
 {
-
   canvas.fillScreen(1);
-
 
   canvas.drawRect(
     5,
@@ -355,23 +410,14 @@ void drawClock()
     1
   );
 
-
   canvas.setTextColor(0);
 
-
-
-  int16_t x1,y1;
-  uint16_t w,h;
-
-
-
-
+  int16_t x1, y1;
+  uint16_t w, h;
 
   canvas.setTextSize(2);
 
-
-  String title="PicturesqueOS";
-
+  String title = "PicturesqueOS";
 
   canvas.getTextBounds(
     title,
@@ -383,24 +429,21 @@ void drawClock()
     &h
   );
 
-
   canvas.setCursor(
-    (400-w)/2,
+    (400 - w) / 2,
     25
   );
-
 
   canvas.print(title);
 
 
-
-
-  // time
+  // ===============================
+  // Time
+  // ===============================
 
   struct tm timeinfo;
 
-  time_t now=time(nullptr);
-
+  time_t now = time(nullptr);
 
   localtime_r(
     &now,
@@ -408,12 +451,9 @@ void drawClock()
   );
 
 
-
   if(now < 100000)
   {
-
-    String error="NO TIME";
-
+    String error = "NO TIME";
 
     canvas.getTextBounds(
       error,
@@ -425,24 +465,18 @@ void drawClock()
       &h
     );
 
-
     canvas.setCursor(
-      (400-w)/2,
+      (400 - w) / 2,
       140
     );
-
 
     canvas.print(error);
 
     return;
-
   }
 
 
-
-
   char timeString[10];
-
 
   strftime(
     timeString,
@@ -452,10 +486,7 @@ void drawClock()
   );
 
 
-
   canvas.setTextSize(8);
-
-
 
   canvas.getTextBounds(
     timeString,
@@ -467,23 +498,19 @@ void drawClock()
     &h
   );
 
-
   canvas.setCursor(
-    (400-w)/2,
+    (400 - w) / 2,
     105
   );
-
 
   canvas.print(timeString);
 
 
-
-
-
-  // date
+  // ===============================
+  // Date
+  // ===============================
 
   char dateString[40];
-
 
   strftime(
     dateString,
@@ -492,11 +519,7 @@ void drawClock()
     &timeinfo
   );
 
-
-
   canvas.setTextSize(2);
-
-
 
   canvas.getTextBounds(
     dateString,
@@ -508,19 +531,315 @@ void drawClock()
     &h
   );
 
-
-
   canvas.setCursor(
-    (400-w)/2,
+    (400 - w) / 2,
     210
   );
 
-
   canvas.print(dateString);
 
+
+  // Page indicator
+
+  canvas.setTextSize(1);
+
+  canvas.setCursor(
+    350,
+    275
+  );
+
+  canvas.print("PAGE");
 }
 
 
+// ===============================
+// Draw Info Page
+// ===============================
+
+void drawInfo()
+{
+  canvas.fillScreen(1);
+
+  canvas.drawRect(
+    5,
+    5,
+    390,
+    290,
+    1
+  );
+
+  canvas.setTextColor(0);
+
+  canvas.setTextSize(2);
+
+  // ===============================
+  // Title
+  // ===============================
+
+  canvas.setCursor(
+    20,
+    18
+  );
+
+  canvas.print("PicturesqueOS INFO");
+
+
+  // ===============================
+  // WiFi
+  // ===============================
+
+  canvas.setCursor(
+    20,
+    55
+  );
+
+  canvas.print("WiFi:");
+
+  canvas.setCursor(
+    100,
+    55
+  );
+
+  canvas.print(WiFi.SSID());
+
+
+  // ===============================
+  // IP
+  // ===============================
+
+  canvas.setCursor(
+    20,
+    80
+  );
+
+  canvas.print("IP:");
+
+  canvas.setCursor(
+    100,
+    80
+  );
+
+  canvas.print(WiFi.localIP());
+
+
+  // ===============================
+  // Uptime
+  // ===============================
+
+  unsigned long uptimeSeconds = millis() / 1000;
+
+  unsigned long days =
+    uptimeSeconds / 86400;
+
+  unsigned long hours =
+    (uptimeSeconds % 86400) / 3600;
+
+  unsigned long minutes =
+    (uptimeSeconds % 3600) / 60;
+
+  unsigned long seconds =
+    uptimeSeconds % 60;
+
+
+  canvas.setCursor(
+    20,
+    110
+  );
+
+  canvas.print("Uptime:");
+
+  canvas.setCursor(
+    100,
+    110
+  );
+
+  canvas.print(days);
+  canvas.print("d ");
+
+  canvas.print(hours);
+  canvas.print("h ");
+
+  canvas.print(minutes);
+  canvas.print("m ");
+
+
+  // ===============================
+  // Events
+  // ===============================
+
+  canvas.setCursor(
+    20,
+    150
+  );
+
+  canvas.print("Days until:");
+
+
+  // 29 September
+
+  canvas.setCursor(
+    30,
+    175
+  );
+
+  canvas.print("29 September:");
+
+  canvas.setCursor(
+    190,
+    175
+  );
+
+  canvas.print(daysUntil(9, 29));
+
+
+  // Halloween
+
+  canvas.setCursor(
+    30,
+    200
+  );
+
+  canvas.print("Halloween:");
+
+  canvas.setCursor(
+    190,
+    200
+  );
+
+  canvas.print(daysUntil(10, 31));
+
+
+  // Christmas Eve
+
+  canvas.setCursor(
+    30,
+    225
+  );
+
+  canvas.print("Christmas Eve:");
+
+  canvas.setCursor(
+    190,
+    225
+  );
+
+  canvas.print(daysUntil(12, 24));
+
+
+  // Christmas
+
+  canvas.setCursor(
+    30,
+    250
+  );
+
+  canvas.print("Christmas:");
+
+  canvas.setCursor(
+    190,
+    250
+  );
+
+  canvas.print(daysUntil(12, 25));
+
+
+  // ===============================
+  // Page indicator
+  // ===============================
+
+  canvas.setTextSize(1);
+
+  canvas.setCursor(
+    350,
+    275
+  );
+
+  canvas.print("INFO");
+}
+
+// ===============================
+// Draw Current Page
+// ===============================
+
+void drawCurrentPage()
+{
+  if(currentPage == 0)
+  {
+    drawClock();
+  }
+  else
+  {
+    drawInfo();
+  }
+}
+
+// ===============================
+// Buttons
+// ===============================
+
+void handleButtons()
+{
+  bool pageButtonState =
+    digitalRead(BUTTON_PAGE);
+
+  bool refreshButtonState =
+    digitalRead(BUTTON_REFRESH);
+
+
+  // ===============================
+  // PAGE button
+  // ===============================
+
+  if(
+    pageButtonState == LOW &&
+    lastPageButtonState == HIGH &&
+    millis() - lastPageButtonTime > BUTTON_DEBOUNCE
+  )
+  {
+    lastPageButtonTime = millis();
+
+    currentPage++;
+
+    if(currentPage > 1)
+    {
+      currentPage = 0;
+    }
+
+    drawCurrentPage();
+
+    Display_Update();
+
+    Serial.print("Page changed to: ");
+    Serial.println(currentPage);
+  }
+
+
+  // ===============================
+  // REFRESH button
+  // ===============================
+
+  if(
+    refreshButtonState == LOW &&
+    lastRefreshButtonState == HIGH &&
+    millis() - lastRefreshButtonTime > BUTTON_DEBOUNCE
+  )
+  {
+    lastRefreshButtonTime = millis();
+
+    drawCurrentPage();
+
+    Display_Update();
+
+    Serial.println("Manual refresh");
+  }
+
+
+  lastPageButtonState =
+    pageButtonState;
+
+  lastRefreshButtonState =
+    refreshButtonState;
+}
 
 // ===============================
 // WiFi
@@ -577,6 +896,8 @@ void setup()
   pinMode(EPD_RST,OUTPUT);
   pinMode(EPD_BUSY,INPUT);
 
+  pinMode(BUTTON_PAGE, INPUT_PULLUP);
+  pinMode(BUTTON_REFRESH, INPUT_PULLUP);
 
 
   digitalWrite(EPD_CS,HIGH);
@@ -631,16 +952,20 @@ void setup()
 
 void loop()
 {
+  // Handle buttons
+  handleButtons();
 
-  static int lastMinute=-1;
+
+  // ===============================
+  // Clock updates
+  // ===============================
+
+  static int lastMinute = -1;
 
 
-
-  time_t now=time(nullptr);
-
+  time_t now = time(nullptr);
 
   struct tm timeinfo;
-
 
   localtime_r(
     &now,
@@ -648,29 +973,25 @@ void loop()
   );
 
 
+  // Only automatically update the
+  // clock page once every minute.
 
-  if(timeinfo.tm_min != lastMinute)
+  if(
+    currentPage == 0 &&
+    timeinfo.tm_min != lastMinute
+  )
   {
-
-    lastMinute=timeinfo.tm_min;
-
-
+    lastMinute = timeinfo.tm_min;
 
     drawClock();
 
-
     Display_Update();
-
-
 
     Serial.println(
       "Clock updated"
     );
-
   }
 
 
-
-  delay(1000);
-
+  delay(50);
 }
